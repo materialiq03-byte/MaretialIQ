@@ -1,0 +1,34 @@
+{
+  "name": "materialiq",
+  "version": "0.2.0",
+  "private": true,
+  "description": "MaterialIQ — cross-CPSE material harmonization review console (demo data). Next.js + TypeScript + SQLite; deterministic matching; human approval required for all mappings.",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "evaluate": "tsx scripts/evaluate.ts",
+    "smoke": "tsx scripts/smoke-test.ts",
+    "db:migrate": "tsx scripts/migrate.ts",
+    "db:seed": "tsx scripts/seed.ts",
+    "test": "node scripts/test-env-guard.js && tsx tests/pipeline.test.ts && tsx tests/import.test.ts && tsx tests/auth.test.ts && tsx tests/matching.test.ts && tsx tests/synthetic-dataset.test.ts && tsx tests/analytics.test.ts && tsx tests/evaluation.test.ts && tsx tests/runtime-cache.test.ts && tsx tests/matching-prefilter.test.ts && tsx tests/matching-prepared.test.ts && tsx tests/blocking-shadow.test.ts && tsx tests/persistence-policy.test.ts && tsx tests/cmi-shortcircuit.test.ts && tsx tests/cmi-funnel.test.ts && tsx tests/cmi-workflow.test.ts && tsx tests/procurement-foundation.test.ts && tsx tests/procurement-analytics.test.ts && tsx tests/procurement-import.test.ts && tsx tests/procurement-opportunities.test.ts && tsx tests/procurement-suppliers.test.ts && tsx tests/procurement-uom.test.ts && tsx tests/procurement-uom-governance.test.ts && tsx tests/procurement-uom-history.test.ts && tsx tests/procurement-uom-versioning.test.ts && tsx tests/procurement-governance-cockpit.test.ts && tsx tests/cpse-integration.test.ts && tsx tests/matching-review-hardening.test.ts && tsx tests/matching-judge-mode.test.ts && tsx tests/retrieval.test.ts && tsx tests/adapter.test.ts && tsx tests/matching-job.test.ts && tsx tests/import-job.test.ts && tsx tests/migration-prep.test.ts && tsx tests/import-streaming.test.ts && tsx tests/import-batch.test.ts && tsx tests/import-async.test.ts && tsx tests/api-imports-contract.test.ts && tsx tests/security-hardening.test.ts"
+  },
+  "dependencies": {
+    "next": "^15.3.0",
+    "pg": "^8.23.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "recharts": "^3.10.1",
+    "xlsx": "^0.18.5",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "@types/pg": "^8.23.1",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "tsx": "^4.23.13",
+    "typescript": "^5.8.0"
+  }
+}

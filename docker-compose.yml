@@ -1,0 +1,30 @@
+version: "3.9"
+
+# MaterialIQ SIH 2026 prototype — one-command demo deployment.
+#   docker compose up --build   → http://localhost:3000
+# The SQLite database persists in the named volume `materialiq-data`.
+
+services:
+  materialiq:
+    build: .
+    image: materialiq:sih2026
+    container_name: materialiq
+    ports:
+      - "3000:3000"
+    environment:
+      # SIH prototype mode: direct access without login (see README).
+      # Set REQUIRE_AUTH=true to restore the demo accounts / RBAC stack.
+      REQUIRE_AUTH: "false"
+      NODE_ENV: production
+    volumes:
+      - materialiq-data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+volumes:
+  materialiq-data:

@@ -1,0 +1,20 @@
+node_modules/
+.next/
+out/
+data/
+*.tsbuildinfo
+*.log
+next-env.d.ts
+.DS_Store
+
+# Local environment files (secrets; never commit)
+.env
+.env.local
+.env.*.local
+
+# Production database backups (never commit)
+backups/
+
+.freebuff/
+.next-dev/
+certs/

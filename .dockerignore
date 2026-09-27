@@ -1,0 +1,8 @@
+node_modules
+.next
+.freebuff
+data
+*.log
+.git
+.env*
+!data/synthetic-imports

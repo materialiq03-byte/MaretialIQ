@@ -1,0 +1,51 @@
+cpse_name,material_code,material_description,category,subcategory,manufacturer,part_number,material,size,uom,voltage,pressure_rating,power,temperature_rating,seal_type,bearing_type,grade
+CPCL,CP-1001,SKF BALL BEARING 6205-2RS,Bearings,Deep Groove Ball Bearing,SKF,6205-2RS,Chrome Steel,25x52x15 mm,EA,,,,-20 to 110 C,2RS,Deep Groove,GCR15
+CPCL,CP-1002,SKF BALL BEARING 6206-2RS,Bearings,Deep Groove Ball Bearing,SKF,6206-2RS,Chrome Steel,30x62x16 mm,EA,,,,-20 to 110 C,2RS,Deep Groove,GCR15
+CPCL,CP-1003,SKF DEEP GROOVE BRG 6305-ZZ,Bearings,Deep Groove Ball Bearing,SKF,6305-ZZ,Chrome Steel,25x62x17 mm,EA,,,,-20 to 110 C,ZZ,Deep Groove,GCR15
+CPCL,CP-1004,TIMKEN TAPER ROLLER BEARING 30205,Bearings,Taper Roller Bearing,Timken,30205,Chrome Steel,25x52x16.25 mm,EA,,,,-20 to 120 C,,Taper Roller,GCR15
+CPCL,CP-1005,SKF BALL BRG 6207 2RS,Bearings,Deep Groove Ball Bearing,SKF,6207-2RS,Chrome Steel,35x72x17 mm,EA,,,,-20 to 110 C,2RS,Deep Groove,GCR15
+CPCL,CP-1006,GATE VALVE 2 IN CLASS 150 CS,Valves,Gate Valve,L&T,GV-2-150,Carbon Steel,2 inch,EA,,Class 150,,-29 to 180 C,,,ASTM A216 WCB
+CPCL,CP-1007,GATE V/V 2 IN CLASS 300 CS,Valves,Gate Valve,L&T,GV-2-300,Carbon Steel,2 inch,EA,,Class 300,,-29 to 180 C,,,ASTM A216 WCB
+CPCL,CP-1008,AC INDUCTION MOTOR 415V 15KW,Motors,Induction Motor,ABB,M2BAX 15KW,Cast Iron,15 kW,EA,415 V,,15 kW,-20 to 40 C,,,IE3
+CPCL,CP-1009,CENTRIFUGAL PUMP 50 M3/HR 30M HEAD,Pumps,Centrifugal Pump,KSB,CP-50-30,Stainless Steel,50 m3/hr,EA,,10 bar,22 kW,0 to 120 C,,,ASTM A743
+CPCL,CP-1010,HEX BOLT M16 X 60 GR 8.8,Fasteners,Hex Bolt,TVS,HB-M16-60-88,Alloy Steel,M16 x 60 mm,EA,,,,-20 to 150 C,,,Grade 8.8
+NTPC,NT-8821,SKF DEEP GROOVE BRG 6205 2RS,Bearings,Deep Groove Ball Bearing,SKF,6205-2RS,Chrome Steel,25x52x15 mm,EA,,,,-20 to 110 C,2RS,Deep Groove,GCR15
+NTPC,NT-8822,SKF BALL BEARING 6206 2RS,Bearings,Deep Groove Ball Bearing,SKF,6206-2RS,Chrome Steel,30x62x16 mm,EA,,,,-20 to 110 C,2RS,Deep Groove,GCR15
+NTPC,NT-8823,SKF BALL BRG 6305 ZZ,Bearings,Deep Groove Ball Bearing,SKF,6305-ZZ,Chrome Steel,25x62x17 mm,EA,,,,-20 to 110 C,ZZ,Deep Groove,GCR15
+NTPC,NT-8824,TIMKEN TAPER ROLLER BRG 30205,Bearings,Taper Roller Bearing,Timken,30205,Chrome Steel,25x52x16.25 mm,EA,,,,-20 to 120 C,,Taper Roller,GCR15
+NTPC,NT-8825,SKF DEEP GROOVE BRG 6207 2RS,Bearings,Deep Groove Ball Bearing,SKF,6207-2RS,Chrome Steel,35x72x17 mm,EA,,,,-20 to 110 C,2RS,Deep Groove,GCR15
+NTPC,NT-8826,GATE VALVE 2 IN CL 150 CS,Valves,Gate Valve,L&T,GV-2-150,Carbon Steel,2 inch,EA,,Class 150,,-29 to 180 C,,,ASTM A216 WCB
+NTPC,NT-8827,GATE VALVE 2 IN CL 300 CS,Valves,Gate Valve,L&T,GV-2-300,Carbon Steel,2 inch,EA,,Class 300,,-29 to 180 C,,,ASTM A216 WCB
+NTPC,NT-8828,INDUCTION MOTOR 415 V 15 KW,Motors,Induction Motor,ABB,M2BAX 15KW,Cast Iron,15 kW,EA,415 V,,15 kW,-20 to 40 C,,,IE3
+NTPC,NT-8829,CENT PUMP 50 M3/HR 30M HEAD,Pumps,Centrifugal Pump,KSB,CP-50-30,Stainless Steel,50 m3/hr,EA,,10 bar,22 kW,0 to 120 C,,,ASTM A743
+NTPC,NT-8830,HEX BOLT M16X60 GR8.8,Fasteners,Hex Bolt,TVS,HB-M16-60-88,Alloy Steel,M16 x 60 mm,EA,,,,-20 to 150 C,,,Grade 8.8
+BHEL,BH-4410,SKF BEARING 6205-ZZ,Bearings,Deep Groove Ball Bearing,SKF,6205-ZZ,Chrome Steel,25x52x15 mm,EA,,,,-20 to 110 C,ZZ,Deep Groove,GCR15
+BHEL,BH-4411,SKF DEEP GROOVE BEARING 6206-2RS,Bearings,Deep Groove Ball Bearing,SKF,6206-2RS,Chrome Steel,30x62x16 mm,EA,,,,-20 to 110 C,2RS,Deep Groove,GCR15
+BHEL,BH-4412,SKF BEARING 6305-ZZ,Bearings,Deep Groove Ball Bearing,SKF,6305-ZZ,Chrome Steel,25x62x17 mm,EA,,,,-20 to 110 C,ZZ,Deep Groove,GCR15
+BHEL,BH-4413,TIMKEN TAPER ROLLER 30205,Bearings,Taper Roller Bearing,Timken,30205,Chrome Steel,25x52x16.25 mm,EA,,,,-20 to 120 C,,Taper Roller,GCR15
+BHEL,BH-4414,SKF BEARING 6207-2RS,Bearings,Deep Groove Ball Bearing,SKF,6207-2RS,Chrome Steel,35x72x17 mm,EA,,,,-20 to 110 C,2RS,Deep Groove,GCR15
+BHEL,BH-4415,GATE VALVE 2 INCH CLASS 150,Valves,Gate Valve,L&T,GV-2-150,Carbon Steel,2 inch,EA,,Class 150,,-29 to 180 C,,,ASTM A216 WCB
+BHEL,BH-4416,GATE VALVE 2 INCH CLASS 300,Valves,Gate Valve,L&T,GV-2-300,Carbon Steel,2 inch,EA,,Class 300,,-29 to 180 C,,,ASTM A216 WCB
+BHEL,BH-4417,AC MOTOR 415V 15KW IE3,Motors,Induction Motor,ABB,M2BAX 15KW,Cast Iron,15 kW,EA,415 V,,15 kW,-20 to 40 C,,,IE3
+BHEL,BH-4418,CENTRIFUGAL PUMP 50 M3/HR 30 M HEAD,Pumps,Centrifugal Pump,KSB,CP-50-30,Stainless Steel,50 m3/hr,EA,,10 bar,22 kW,0 to 120 C,,,ASTM A743
+BHEL,BH-4419,HEXAGONAL BOLT M16-60 GRADE 8.8,Fasteners,Hex Bolt,TVS,HB-M16-60-88,Alloy Steel,M16 x 60 mm,EA,,,,-20 to 150 C,,,Grade 8.8
+NLC,NL-3301,SKF BALL BEARING 6205-2RS,Bearings,Deep Groove Ball Bearing,SKF,6205-2RS,Chrome Steel,25x52x15 mm,EA,,,,-20 to 110 C,2RS,Deep Groove,GCR15
+NLC,NL-3302,SKF BRG 6206 2RS,Bearings,Deep Groove Ball Bearing,SKF,6206-2RS,Chrome Steel,30x62x16 mm,EA,,,,-20 to 110 C,2RS,Deep Groove,GCR15
+NLC,NL-3303,SKF BALL BEARING 6305-ZZ,Bearings,Deep Groove Ball Bearing,SKF,6305-ZZ,Chrome Steel,25x62x17 mm,EA,,,,-20 to 110 C,ZZ,Deep Groove,GCR15
+NLC,NL-3304,TIMKEN TAPER ROLLER BEARING 30205,Bearings,Taper Roller Bearing,Timken,30205,Chrome Steel,25x52x16.25 mm,EA,,,,-20 to 120 C,,Taper Roller,GCR15
+NLC,NL-3305,SKF BALL BRG 6207-2RS,Bearings,Deep Groove Ball Bearing,SKF,6207-2RS,Chrome Steel,35x72x17 mm,EA,,,,-20 to 110 C,2RS,Deep Groove,GCR15
+NLC,NL-3306,2IN GATE VALVE CLASS 150,Valves,Gate Valve,L&T,GV-2-150,Carbon Steel,2 inch,EA,,Class 150,,-29 to 180 C,,,ASTM A216 WCB
+NLC,NL-3307,2IN GATE VALVE CLASS 300,Valves,Gate Valve,L&T,GV-2-300,Carbon Steel,2 inch,EA,,Class 300,,-29 to 180 C,,,ASTM A216 WCB
+NLC,NL-3308,3PH INDUCTION MOTOR 415V 15KW,Motors,Induction Motor,ABB,M2BAX 15KW,Cast Iron,15 kW,EA,415 V,,15 kW,-20 to 40 C,,,IE3
+NLC,NL-3309,KSB CENTRIFUGAL PUMP 50 M3/HR 30M,Pumps,Centrifugal Pump,KSB,CP-50-30,Stainless Steel,50 m3/hr,EA,,10 bar,22 kW,0 to 120 C,,,ASTM A743
+NLC,NL-3310,HEX BOLT M16 X 60 GRADE 8.8,Fasteners,Hex Bolt,TVS,HB-M16-60-88,Alloy Steel,M16 x 60 mm,EA,,,,-20 to 150 C,,,Grade 8.8
+SAIL,SL-7721,SKF BALL BRG 6205-2RS,Bearings,Deep Groove Ball Bearing,SKF,6205-2RS,Chrome Steel,25x52x15 mm,EA,,,,-20 to 110 C,2RS,Deep Groove,GCR15
+SAIL,SL-7722,SKF DEEP GROOVE BRG 6206-2RS,Bearings,Deep Groove Ball Bearing,SKF,6206-2RS,Chrome Steel,30x62x16 mm,EA,,,,-20 to 110 C,2RS,Deep Groove,GCR15
+SAIL,SL-7723,SKF BALL BRG 6305-ZZ,Bearings,Deep Groove Ball Bearing,SKF,6305-ZZ,Chrome Steel,25x62x17 mm,EA,,,,-20 to 110 C,ZZ,Deep Groove,GCR15
+SAIL,SL-7724,TIMKEN TAPER ROLLER BRG 30205,Bearings,Taper Roller Bearing,Timken,30205,Chrome Steel,25x52x16.25 mm,EA,,,,-20 to 120 C,,Taper Roller,GCR15
+SAIL,SL-7725,SKF BALL BEARING 6207 2RS,Bearings,Deep Groove Ball Bearing,SKF,6207-2RS,Chrome Steel,35x72x17 mm,EA,,,,-20 to 110 C,2RS,Deep Groove,GCR15
+SAIL,SL-7726,GATE V/V 2 IN CL150,Valves,Gate Valve,L&T,GV-2-150,Carbon Steel,2 inch,EA,,Class 150,,-29 to 180 C,,,ASTM A216 WCB
+SAIL,SL-7727,GATE V/V 2 IN CL300,Valves,Gate Valve,L&T,GV-2-300,Carbon Steel,2 inch,EA,,Class 300,,-29 to 180 C,,,ASTM A216 WCB
+SAIL,SL-7728,ABB AC INDUCTION MOTOR 415V 15KW,Motors,Induction Motor,ABB,M2BAX 15KW,Cast Iron,15 kW,EA,415 V,,15 kW,-20 to 40 C,,,IE3
+SAIL,SL-7729,CENT PUMP 50M3/HR 30M HEAD,Pumps,Centrifugal Pump,KSB,CP-50-30,Stainless Steel,50 m3/hr,EA,,10 bar,22 kW,0 to 120 C,,,ASTM A743
+SAIL,SL-7730,HEX BOLT M16X60 GR 8.8,Fasteners,Hex Bolt,TVS,HB-M16-60-88,Alloy Steel,M16 x 60 mm,EA,,,,-20 to 150 C,,,Grade 8.8
