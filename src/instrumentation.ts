@@ -20,7 +20,21 @@ export async function register(): Promise<void> {
     console.error('MATERIALIQ: refusing to start — unsafe production configuration:');
     for (const p of problems) console.error(`  - ${p}`);
     console.error('======================================================\n');
-    process.exit(1);
+    // Fail-fast abort. On a regular Node server (next start / Docker /
+    // self-hosted) process.exit(1) hard-stops the process. On Vercel's
+    // serverless instrumentation runtime `process.exit` does not exist
+    // (TypeError: process.exit is not a function), so there we throw — the
+    // Next.js-compatible way to abort the instrumentation hook; Vercel
+    // surfaces the error and the deployment never serves traffic. The
+    // validation itself is unchanged: the same unsafe configurations are
+    // refused on every platform.
+    if (typeof process.exit === 'function') {
+      process.exit(1);
+    }
+    throw new Error(
+      'MATERIALIQ refusing to start — unsafe production configuration:\n' +
+        problems.map((p) => `  - ${p}`).join('\n')
+    );
   }
   for (const w of validateEnvWarnings(process.env)) {
     console.warn(`MATERIALIQ config warning: ${w}`);
