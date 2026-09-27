@@ -32,6 +32,22 @@ export const orgUpdateSchema = orgCreateSchema.partial().extend({
 });
 export type OrgUpdate = z.infer<typeof orgUpdateSchema>;
 
+/** Platform user administration — mirrors admin-service.createUserAsync rules. */
+export const userCreateSchema = z.object({
+  name: z.string().trim().min(2, 'Name must be at least 2 characters').max(120),
+  email: z.string().trim().toLowerCase().email().max(200),
+  password: z.string().min(8, 'Password must be at least 8 characters').max(200),
+  role: z.enum(['cpse_material_manager', 'cpse_technical_reviewer', 'authority', 'platform_admin']),
+  organizationId: idSchema.optional(),
+});
+export type UserCreate = z.infer<typeof userCreateSchema>;
+
+/** Demo role switch — target user the admin wants a real session for. */
+export const demoSwitchSchema = z.object({
+  userId: idSchema,
+});
+export type DemoSwitch = z.infer<typeof demoSwitchSchema>;
+
 export const materialCreateSchema = z.object({
   organizationId: idSchema,
   originalCode: z
