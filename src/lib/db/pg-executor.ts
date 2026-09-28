@@ -274,7 +274,15 @@ function hostOf(connectionString: string): string {
  */
 function pgModulePath(): string | undefined {
   // NOTE: require.resolve is unusable here — bundlers rewrite it and return a
-  // numeric module id. Resolve pg's package entry by path instead.
+  // numeric module id. Resolve pg's package entry by path instead. The
+  // trace-time require below is what makes the bundler ship node_modules/pg
+  // at all (serverExternalPackages keeps it external rather than bundled).
+  try {
+    const pg = require('pg');
+    void pg;
+  } catch {
+    /* tracing-only require; resolution retried below */
+  }
   const fs = require('node:fs') as typeof import('node:fs');
   const path = require('node:path') as typeof import('node:path');
   const entry = path.join(process.cwd(), 'node_modules', 'pg', 'lib', 'index.js');
