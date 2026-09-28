@@ -124,6 +124,25 @@ export function translateSql(sql: string, dialect: Dialect = getDialect()): stri
     }
   );
 
+  // json_array_length(col, '$.key') -> jsonb_array_length((col #> '{key}'))
+  // Supabase stores evidence as jsonb (v11 translation) and PG's
+  // json_array_length only accepts json. jsonb_array_length returns the same
+  // integer semantics as SQLite for arrays present at the path. A missing key
+  // would raise in PG where SQLite returns 0, so the translation guards with
+  // a jsonb typeof check — arrays count their elements, anything else (absent
+  // key, object, scalar, SQL NULL) counts as 0, byte-identical to SQLite.
+  out = out.replace(
+    /\bjson_array_length\s*\(\s*([A-Za-z_][\w."]*)\s*,\s*'(\$(?:\.[A-Za-z_][\w]*)+)'\s*\)/gi,
+    (_m: string, col: string, path: string) => {
+      const parts = path
+        .replace(/^\$\.?/, '')
+        .split('.')
+        .filter(Boolean);
+      const pgPath = `{${parts.join(',')}}`;
+      return `(CASE WHEN jsonb_typeof((${col.trim()} #> '${pgPath}')) = 'array' THEN jsonb_array_length((${col.trim()} #> '${pgPath}')) ELSE 0 END)`;
+    }
+  );
+
   // INSERT OR IGNORE: the statement translator resolves known targets below;
   // unknown ones must fail loudly rather than change duplicate semantics.
   return out;
