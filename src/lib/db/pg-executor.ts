@@ -273,8 +273,13 @@ function hostOf(connectionString: string): string {
  * the project tree and bare `require('pg')` would fail.
  */
 function pgModulePath(): string | undefined {
+  // NOTE: require.resolve is unusable here — bundlers rewrite it and return a
+  // numeric module id. Resolve pg's package entry by path instead.
+  const fs = require('node:fs') as typeof import('node:fs');
+  const path = require('node:path') as typeof import('node:path');
+  const entry = path.join(process.cwd(), 'node_modules', 'pg', 'lib', 'index.js');
   try {
-    return require.resolve('pg');
+    return fs.existsSync(entry) ? entry : undefined;
   } catch {
     return undefined;
   }
