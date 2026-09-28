@@ -41,8 +41,8 @@ import { translateStatement } from './dialect';
 import type { PreparedStatementApi, RunResult, StatementExecutor } from './adapter';
 
 const WORKER_SOURCE = /* js */ `
-const { Pool } = require(workerData.pgModulePath || 'pg');
 const { workerData, parentPort } = require('node:worker_threads');
+const { Pool } = require(workerData.pgModulePath || 'pg');
 
 const sab = workerData.sab;
 const view = new Int32Array(sab, 0, 2);      // [flag, length]
