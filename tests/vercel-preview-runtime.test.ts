@@ -1,7 +1,7 @@
 /**
  * Vercel Preview runtime packaging tests — `npx tsx tests/vercel-preview-runtime.test.ts`.
  *
- * Covers the two deployment-packaging guarantees the Preview gate depends on:
+ * Covers the deployment-packaging guarantees the Preview gate depends on:
  *   1. TLS trust material resolution for the PostgreSQL executor:
  *        - MATERIALIQ_PG_SSL_CA secret wins over the local file (serverless
  *          runtimes cannot package the gitignored certs/ directory),
@@ -15,6 +15,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { execFileSync } from 'node:child_process';
 
 import { resolveSslConfig } from '../src/lib/db/pg-executor';
 
@@ -74,7 +75,7 @@ test('env secret CA wins over any on-disk file and keeps rejectUnauthorized true
 test('local certs/supabase-ca.crt still works when no secret is set', () => {
   withSandbox((dir) => {
     fs.mkdirSync(path.join(dir, 'certs'));
-    fs.writeFileSync(path.join(dir, 'certs', 'supabase-ca.crt'), 'file-pem');
+    fs.writeFileSync(path.join(dir, 'certs/supabase-ca.crt'), 'file-pem');
     const cfg = resolveSslConfig() as Record<string, unknown>;
     assert.equal(cfg.rejectUnauthorized, true);
     assert.equal(cfg.ca, 'file-pem');
@@ -100,7 +101,7 @@ test('insecure mode is still refused at boot in production (fail-closed guard in
 });
 
 test('ground-truth dataset is packaged with the deployment payload', () => {
-  const dsPath = path.join(repoRoot, 'data', 'evaluation', 'ground-truth-pairs.json');
+  const dsPath = path.join(repoRoot, 'data/evaluation/ground-truth-pairs.json');
   assert.ok(fs.existsSync(dsPath), 'data/evaluation/ground-truth-pairs.json missing from repo payload');
   const ds = JSON.parse(fs.readFileSync(dsPath, 'utf8'));
   assert.ok(Array.isArray(ds.pairs) && ds.pairs.length >= 50, 'ground-truth pairs missing or truncated');
@@ -108,26 +109,24 @@ test('ground-truth dataset is packaged with the deployment payload', () => {
 });
 
 test('run history and per-CPSE fixtures are packaged', () => {
-  assert.ok(fs.existsSync(path.join(repoRoot, 'data', 'evaluation', 'run-history.json')), 'run-history.json missing');
+  assert.ok(fs.existsSync(path.join(repoRoot, 'data/evaluation/run-history.json')), 'run-history.json missing');
   for (const cpse of ['BHEL', 'CPCL', 'NLC', 'NTPC', 'SAIL']) {
     assert.ok(
-      fs.existsSync(path.join(repoRoot, 'data', 'evaluation', 'fixtures', cpse + '.csv')),
+      fs.existsSync(path.join(repoRoot, 'data/evaluation/fixtures', cpse + '.csv')),
       `fixture ${cpse}.csv missing`
     );
   }
 });
 
-test('no SQLite database or secret artifacts are packaged into the repo payload', () => {
+test('tracked data/ artifacts are exactly the non-secret evaluation fixtures', () => {
   // The deployment payload is the git-tracked file set: data/ may hold local
   // ignored databases, but anything TRACKED under data/ must be a fixture.
-  const { execFileSync } = require('node:child_process') as typeof import('node:child_process');
   const tracked = execFileSync('git', ['ls-files', 'data/'], { cwd: repoRoot, encoding: 'utf8' })
     .split('\n')
     .filter(Boolean);
   assert.ok(tracked.length >= 7, 'evaluation fixtures are not tracked: ' + tracked.join(', '));
   const forbidden = tracked.filter((f) => /\.(db|db-wal|db-shm|env)$|\.pem$|credential|secret/i.test(f));
   assert.deepEqual(forbidden, []);
-  // And the tracked set is exactly the evaluation fixture surface.
   for (const f of tracked) {
     assert.ok(f.startsWith('data/evaluation/'), 'unexpected tracked artifact under data/: ' + f);
   }
