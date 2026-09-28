@@ -1,7 +1,15 @@
 node_modules/
 .next/
 out/
-data/
+data/*
+# Evaluation fixtures are non-secret demo data required at runtime by /evaluation
+# (ground truth, run history, per-CPSE fixtures). Everything else under data/ —
+# databases, WAL/SHM, uploads, synthetic feeds — stays out of the repository.
+!data/evaluation/
+data/evaluation/*
+!data/evaluation/ground-truth-pairs.json
+!data/evaluation/run-history.json
+!data/evaluation/fixtures/
 *.tsbuildinfo
 *.log
 next-env.d.ts

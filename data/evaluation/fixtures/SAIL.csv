@@ -1,0 +1,14 @@
+cpse_name,material_code,material_description,category,subcategory,manufacturer,part_number,material,size,uom,voltage,pressure_rating,power,temperature_rating,seal_type,bearing_type,grade
+SAIL,SL-2298,SIEMENS 3PH INDUCTION MOTOR 75KW 415V B3,Motors,Induction motors,Siemens,,,,NOS,415 V,,75 KW,,,,
+SAIL,SL-3312,SLAB GATE VALVE 6IN 600# RTJ,Valves,Gate valves,L&T,,,,NOS,,600#,,,,,
+SAIL,SL-6640,CENTRIFUGAL PUMP 8X6-11 CAST IRON CASING,Pumps,Centrifugal pumps,KSB,,,,NOS,,,,,,,
+SAIL,SL-7721,SKF BALL BRG 6205-2RS,Bearings,Ball bearings,SKF,,,,NOS,,,,,2RS,DEEP GROOVE BALL,
+SAIL,SL-7723,SKF BALL BRG 6305-ZZ,Bearings,,SKF,6305-ZZ,Chrome Steel,25x62x17 mm,EA,,,,-20 to 110 C,ZZ,Deep Groove,GCR15
+SAIL,SL-7725,SKF BALL BEARING 6207 2RS,Bearings,,SKF,6207-2RS,Chrome Steel,35x72x17 mm,EA,,,,-20 to 110 C,2RS,Deep Groove,GCR15
+SAIL,SL-7726,GATE V/V 2 IN CL150,Valves,,L&T,GV-2-150,Carbon Steel,2 inch,EA,,Class 150,,-29 to 180 C,,,ASTM A216 WCB
+SAIL,SL-7727,GATE V/V 2 IN CL300,Valves,,L&T,GV-2-300,Carbon Steel,2 inch,EA,,Class 300,,-29 to 180 C,,,ASTM A216 WCB
+SAIL,SL-7728,ABB AC INDUCTION MOTOR 415V 15KW,Motors,,ABB,M2BAX 15KW,Cast Iron,15 kW,EA,415 V,,15 kW,-20 to 40 C,,,IE3
+SAIL,SL-7730,HEX BOLT M16X60 GR 8.8,Fasteners,,TVS,HB-M16-60-88,Alloy Steel,M16 x 60 mm,EA,,,,-20 to 150 C,,,Grade 8.8
+SAIL,SL-8805,HEX BOLT M20X80 SS304,Fasteners,Bolts,,,,,NOS,,,,,,,SS304
+SAIL,SL-9905,SIEMENS 3PH INDUCTION MOTOR 30KW 415V,Motors,,SIEMENS,,,,NOS,415 V,,30 KW,,,,
+SAIL,SL-9906,STUD BOLT M20X150 B7,Fasteners,,,,,,NOS,,,,,,,

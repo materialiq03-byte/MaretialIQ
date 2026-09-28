@@ -1,0 +1,9 @@
+cpse_name,material_code,material_description,category,subcategory,manufacturer,part_number,material,size,uom,voltage,pressure_rating,power,temperature_rating,seal_type,bearing_type,grade
+NLC,NL-3301,SKF BALL BEARING 6205-2RS,Bearings,,SKF,6205-2RS,Chrome Steel,25x52x15 mm,EA,,,,-20 to 110 C,2RS,Deep Groove,GCR15
+NLC,NL-3302,SKF BRG 6206 2RS,Bearings,,SKF,6206-2RS,Chrome Steel,30x62x16 mm,EA,,,,-20 to 110 C,2RS,Deep Groove,GCR15
+NLC,NL-3303,SKF BALL BEARING 6305-ZZ,Bearings,,SKF,6305-ZZ,Chrome Steel,25x62x17 mm,EA,,,,-20 to 110 C,ZZ,Deep Groove,GCR15
+NLC,NL-3304,TIMKEN TAPER ROLLER BEARING 30205,Bearings,,Timken,30205,Chrome Steel,25x52x16.25 mm,EA,,,,-20 to 120 C,,Taper Roller,GCR15
+NLC,NL-3306,2IN GATE VALVE CLASS 150,Valves,,L&T,GV-2-150,Carbon Steel,2 inch,EA,,Class 150,,-29 to 180 C,,,ASTM A216 WCB
+NLC,NL-3309,KSB CENTRIFUGAL PUMP 50 M3/HR 30M,Pumps,,KSB,CP-50-30,Stainless Steel,50 m3/hr,EA,,10 bar,22 kW,0 to 120 C,,,ASTM A743
+NLC,NL-7706,HEX NUT M20 SS304,Fasteners,,,,,,NOS,,,,,,,SS304
+NLC,NL-7707,SKF SPHERICAL ROLLER BEARING 22216 E,Bearings,,SKF,22216E,,,NOS,,,,,,SPHERICAL ROLLER,

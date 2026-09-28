@@ -198,10 +198,35 @@ const CALL_TIMEOUT_MS = 120_000;
  * against certs/supabase-ca.crt with rejectUnauthorized:true. That is the
  * node-postgres equivalent of libpq sslmode=verify-full (CA + hostname).
  *
+ * Serverless runtimes (Vercel Preview) cannot ship the gitignored local CA
+ * file, so the pinned CA may alternatively arrive through the
+ * MATERIALIQ_PG_SSL_CA secret (raw PEM, injected as an environment variable
+ * and never committed). Both sources produce the identical verify-full
+ * policy; the chain is still fully validated either way.
+ *
  * MATERIALIQ_PG_SSL=insecure explicitly restores the legacy accept-any mode
  * (offline experiments only — never the default).
  */
-function resolveSslConfig(): Record<string, unknown> | undefined {
+/**
+ * TLS trust material for CA-pinned mode, in priority order:
+ *   1. MATERIALIQ_PG_SSL_CA secret (raw PEM) — for serverless runtimes where
+ *      the gitignored cert file cannot be packaged.
+ *   2. certs/supabase-ca.crt on disk — the local/bootstrap-pinned path.
+ * The caller fails closed when neither is present.
+ */
+function caTrustPem(): { source: string; pem: string } | undefined {
+  const fromEnv = (process.env.MATERIALIQ_PG_SSL_CA || '').trim();
+  if (fromEnv) return { source: 'MATERIALIQ_PG_SSL_CA', pem: fromEnv };
+  const fs = require('node:fs') as typeof import('node:fs');
+  const path = require('node:path') as typeof import('node:path');
+  const caPath = path.join(process.cwd(), 'certs', 'supabase-ca.crt');
+  if (fs.existsSync(caPath)) {
+    return { source: 'certs/supabase-ca.crt', pem: fs.readFileSync(caPath, 'utf8') };
+  }
+  return undefined;
+}
+
+export function resolveSslConfig(): Record<string, unknown> | undefined {
   const mode = (process.env.MATERIALIQ_PG_SSL || '').trim().toLowerCase();
   if (mode === 'disable') {
     // libpq sslmode=disable equivalent: plaintext. Only meaningful for
@@ -212,24 +237,23 @@ function resolveSslConfig(): Record<string, unknown> | undefined {
   if (mode === 'insecure') {
     return { rejectUnauthorized: false };
   }
-  const fs = require('node:fs') as typeof import('node:fs');
-  const path = require('node:path') as typeof import('node:path');
-  const caPath = path.join(process.cwd(), 'certs', 'supabase-ca.crt');
-  if (fs.existsSync(caPath)) {
+  const trust = caTrustPem();
+  if (trust) {
     return {
-      ca: fs.readFileSync(caPath, 'utf8'),
+      ca: trust.pem,
       rejectUnauthorized: true,
       // Explicit SNI/hostname target: the node checkServerIdentity equivalent
       // of libpq verify-full's hostname check.
       servername: hostOf(process.env.MATERIALIQ_DATABASE_URL || ''),
     };
   }
-  // Fail closed: no pinned CA and no insecure override. The one-time CA
-  // bootstrap is a separate script (TLS extraction is async; the executor's
-  // constructor is deliberately synchronous).
+  // Fail closed: no pinned CA (env or file) and no insecure override. The
+  // one-time CA bootstrap is a separate script (TLS extraction is async; the
+  // executor's constructor is deliberately synchronous).
   throw new Error(
-    'PostgreSQL SSL hardening: certs/supabase-ca.crt not found. ' +
-      'Run `npx tsx scripts/bootstrap-pg-ca.ts` once to pin the Supabase CA, ' +
+    'PostgreSQL SSL hardening: no CA trust material (certs/supabase-ca.crt not found and MATERIALIQ_PG_SSL_CA not set). ' +
+      'In serverless deployments set the MATERIALIQ_PG_SSL_CA secret to the Supabase CA PEM, ' +
+      'or run `npx tsx scripts/bootstrap-pg-ca.ts` once locally, ' +
       'or set MATERIALIQ_PG_SSL=insecure to opt out (not recommended).'
   );
 }
