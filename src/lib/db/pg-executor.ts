@@ -387,14 +387,31 @@ export class PostgresExecutor implements StatementExecutor {
     // The worker source MUST live inside the project tree so its
     // require('pg') resolves against the project's node_modules (a tmpdir
     // file cannot see node_modules). node_modules/.cache is git-ignored.
-    const cacheDir = path.join(process.cwd(), 'node_modules', '.cache');
-    fs.mkdirSync(cacheDir, { recursive: true });
+    // Serverless runtimes mount the bundle read-only, so the cache dir must
+    // be writable: prefer an explicit MATERIALIQ_CACHE_DIR, then TMPDIR (set
+    // on Vercel), then the legacy node_modules/.cache. NODE_PATH is exported
+    // to the worker so require('pg') still resolves to the project's
+    // node_modules when the source lands outside the project tree.
+    let cacheDir = path.join(process.cwd(), 'node_modules', '.cache');
+    for (const dir of [process.env.MATERIALIQ_CACHE_DIR, process.env.TMPDIR, cacheDir]) {
+      if (!dir) continue;
+      try {
+        fs.mkdirSync(dir, { recursive: true });
+        cacheDir = dir;
+        break;
+      } catch {
+        /* try the next candidate */
+      }
+    }
     this.workerSourcePath = path.join(cacheDir, `materialiq-pg-executor-${process.pid}.cjs`);
     fs.writeFileSync(this.workerSourcePath, WORKER_SOURCE, { mode: 0o600 });
     this.worker = new Worker(this.workerSourcePath, {
       workerData: { sab: this.sab, connectionString: this.connectionString, sslConfig: this.sslConfig },
       stdout: true,
       stderr: true,
+      // The worker source may live outside the project tree (read-only-bundle
+      // serverless runtimes); NODE_PATH keeps require('pg') resolvable there.
+      env: { ...process.env, NODE_PATH: process.cwd() + '/node_modules' },
     });
     this.worker.unref(); // never keep the process alive just for the pool
   }
