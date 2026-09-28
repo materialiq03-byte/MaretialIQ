@@ -57,10 +57,70 @@ const BOOLEAN_COLUMNS = ['category_compatible', 'is_active', 'is_critical'];
 function translateBooleanLiterals(sql: string): string {
   let out = sql;
   for (const col of BOOLEAN_COLUMNS) {
-    out = out.replace(new RegExp('\\b' + col + '\\s*=\\s*1\\b', 'gi'), col + ' = true');
-    out = out.replace(new RegExp('\\b' + col + '\\s*=\\s*0\\b', 'gi'), col + ' = false');
-    out = out.replace(new RegExp('\\b' + col + '\\s*(!=|<>)\\s*1\\b', 'gi'), col + ' <> true');
-    out = out.replace(new RegExp('\\b' + col + '\\s*(!=|<>)\\s*0\\b', 'gi'), col + ' <> false');
+    out = out.replace(new RegExp('\\b' + col + '\\b\\s*=\\s*1\\b', 'gi'), col + ' = true');
+    out = out.replace(new RegExp('\\b' + col + '\\b\\s*=\\s*0\\b', 'gi'), col + ' = false');
+    out = out.replace(new RegExp('\\b' + col + '\\b\\s*(!=|<>)\\s*1\\b', 'gi'), col + ' <> true');
+    out = out.replace(new RegExp('\\b' + col + '\\b\\s*(!=|<>)\\s*0\\b', 'gi'), col + ' <> false');
+  }
+  return out;
+}
+
+/**
+ * SQLite coerces TEXT-affinity decimal columns (quantity, unit_price — stored
+ * as text in the frozen schema) to numeric inside arithmetic and ROUND();
+ * PostgreSQL has no text*integer operator and no round(text). Rewrite every
+ * top-level ROUND(<arg>) to ROUND(CAST(<arg'> AS numeric)) where bare
+ * decimal-column references inside the argument are CAST(...) to REAL first,
+ * so the multiplication happens in the numeric domain exactly as SQLite's
+ * affinity would. SQLite never sees this rewrite (PostgreSQL dialect only).
+ */
+const NUMERIC_AFFINITY_COLUMNS = ['quantity', 'unit_price'];
+
+function translateRound(sql: string): string {
+  let out = '';
+  let i = 0;
+  while (i < sql.length) {
+    const m = /\bROUND\s*\(/gi.exec(sql.slice(i));
+    if (!m || m.index === undefined) {
+      out += sql.slice(i);
+      break;
+    }
+    const start = i + m.index; // position of ROUND
+    const open = start + m[0].length - 1; // position of '(' after ROUND
+    // Paren-balanced scan of the argument, respecting single-quoted strings.
+    let depth = 0;
+    let j = open;
+    let inQuote = false;
+    for (; j < sql.length; j++) {
+      const c = sql[j];
+      if (inQuote) {
+        if (c === "'") {
+          if (sql[j + 1] === "'") j++; // escaped ''
+          else inQuote = false;
+        }
+      } else if (c === "'") inQuote = true;
+      else if (c === '(') depth++;
+      else if (c === ')') {
+        depth--;
+        if (depth === 0) break;
+      }
+    }
+    if (j >= sql.length) {
+      // Unbalanced (should not happen) — leave the text untouched.
+      out += sql.slice(i);
+      break;
+    }
+    const arg = sql.slice(open + 1, j);
+    // Coerce bare and qualified decimal-column references to REAL (mirroring
+    // SQLite's TEXT->NUMERIC affinity coercion): pr.quantity ->
+    // CAST(pr.quantity AS REAL). Nested inside an existing CAST(...) the
+    // result is a harmless double cast (both engines accept it).
+    const coerced = arg.replace(
+      new RegExp('([A-Za-z_][\\w$]*\\.)?(?:' + NUMERIC_AFFINITY_COLUMNS.join('|') + ')\\b', 'gi'),
+      (ref: string) => `CAST(${ref} AS REAL)`
+    );
+    out += sql.slice(i, start) + `ROUND(CAST(${coerced} AS numeric))`;
+    i = j + 1;
   }
   return out;
 }
@@ -100,6 +160,9 @@ export function translateSql(sql: string, dialect: Dialect = getDialect()): stri
 
   // boolean columns: SQLite-style integer literals -> PG booleans
   out = translateBooleanLiterals(out);
+
+  // TEXT-affinity decimals under ROUND() -> explicit numeric coercion
+  out = translateRound(out);
 
   // GROUP_CONCAT(expr)        -> string_agg(expr::text, ',')
   // GROUP_CONCAT(expr, 'sep') -> string_agg(expr::text, 'sep')
