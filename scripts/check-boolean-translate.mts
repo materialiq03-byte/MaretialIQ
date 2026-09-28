@@ -1,58 +1,70 @@
 /**
- * Sanity check + self-healing rewrite of translateBooleanLiterals.
- * Run: `npx tsx scripts/check-boolean-translate.mts`
+ * Table-aware boolean-rewrite sanity check + live Supabase verification of
+ * the two previously failing JOIN shapes (SELECT-only).
  *
- * The rewrite below reconstructs the function body using explicit character
- * codes for backslashes (String.fromCharCode(92)), so no editor/shell layer
- * can mangle the escaping again.
+ *   npx tsx scripts/check-boolean-translate.mts
+ *   (live part needs MATERIALIQ_DATABASE_URL, read from .env.local when unset)
  */
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { translateSql } from '../src/lib/db/dialect';
 
-const a = translateSql("SELECT * FROM suppliers WHERE is_active = 1", 'postgresql');
-const b = translateSql("SELECT 1 WHERE r.is_active = 1 AND x = 1", 'postgresql');
-const c = translateSql("SELECT id FROM t WHERE is_active <> 0 LIMIT 1", 'postgresql');
-const d = translateSql("SELECT 1 WHERE amount = 10", 'postgresql');
-
-const ok =
-  /is_active = true/.test(a) &&
-  /r\.is_active = true/.test(b) &&
-  /is_active <> false/.test(c) &&
-  !/= true|= false|<> true|<> false/.test(d);
-
-console.log('A:', a);
-console.log('B:', b);
-console.log('C:', c);
-console.log('D:', d);
-console.log(ok ? 'BOOLEAN REWRITES OK' : 'BOOLEAN REWRITES STILL BROKEN — repairing');
-
-if (!ok) {
-  const p = 'src/lib/db/dialect.ts';
-  let src = readFileSync(p, 'utf8');
-  const BS = String.fromCharCode(92);
-  const w = (ch: string) => BS + BS + ch; // writes a single backslash + char into the file
-
-  const body = [
-    'function translateBooleanLiterals(sql: string): string {',
-    '  let out = sql;',
-    '  for (const col of BOOLEAN_COLUMNS) {',
-    "    out = out.replace(new RegExp('" + w('b') + "' + col + '" + w('b') + w('s') + '*=' + w('s') + '*1' + w('b') + "', 'gi'), col + ' = true');",
-    "    out = out.replace(new RegExp('" + w('b') + "' + col + '" + w('b') + w('s') + '*=' + w('s') + '*0' + w('b') + "', 'gi'), col + ' = false');",
-    "    out = out.replace(new RegExp('" + w('b') + "' + col + '" + w('b') + w('s') + '*(!=|<>)' + w('s') + '*1' + w('b') + "', 'gi'), col + ' <> true');",
-    "    out = out.replace(new RegExp('" + w('b') + "' + col + '" + w('b') + w('s') + '*(!=|<>)' + w('s') + '*0' + w('b') + "', 'gi'), col + ' <> false');",
-    '  }',
-    '  return out;',
-    '}',
-    '',
-    '',
-  ].join('\n');
-
-  const startMark = 'function translateBooleanLiterals(sql: string): string {';
-  const endMark = '/**\n * SQLite coerce';
-  const start = src.indexOf(startMark);
-  const end = src.indexOf(endMark);
-  if (start === -1 || end === -1 || end <= start) throw new Error('repair marks not found');
-  src = src.slice(0, start) + body + src.slice(end);
-  writeFileSync(p, src);
-  console.log('translateBooleanLiterals rewritten — re-run this script to verify.');
+let failed = 0;
+function check(name: string, actual: string, expect: RegExp | string, negate = false): void {
+  const ok = negate
+    ? !(typeof expect === 'string' ? actual.includes(expect) : expect.test(actual))
+    : (typeof expect === 'string' ? actual.includes(expect) : expect.test(actual));
+  console.log((ok ? ' ok - ' : ' not ok - ') + name);
+  if (!ok) failed++;
+  if (!ok) console.log('   got:', actual);
 }
+
+// 1. Integer-table is_active stays integer (suppliers, uom_conversion_rules).
+check('suppliers.is_active = 1 untouched', translateSql("SELECT * FROM suppliers WHERE is_active = 1", 'postgresql'), 'is_active = 1');
+check('uom rules join r.is_active = 1 untouched', translateSql("SELECT * FROM procurement_records pr LEFT JOIN uom_conversion_rules r ON r.is_active = 1 AND r.from_uom = 'EA'", 'postgresql'), 'r.is_active = 1');
+check('suppliers.is_active <> 0 untouched', translateSql("SELECT * FROM suppliers WHERE is_active <> 0", 'postgresql'), 'is_active <> 0');
+
+// 2. Qualified boolean-table refs are rewritten (baseline tables).
+check('cm.is_active = 1 rewritten', translateSql("SELECT * FROM material_mappings ma JOIN common_materials cm ON cm.id = ma.cmi_id AND cm.is_active = 1", 'postgresql'), /cm\.is_active = true/);
+check('m.is_active = 1 rewritten', translateSql("SELECT * FROM organizations o LEFT JOIN material_records m ON m.organization_id = o.id AND m.is_active = 1", 'postgresql'), /m\.is_active = true/);
+check('bare common_materials alias-less rewritten', translateSql("SELECT id FROM common_materials WHERE is_active = 1", 'postgresql'), 'WHERE is_active = true');
+check('material_records m.is_active <> 0 rewritten', translateSql("SELECT * FROM material_records m WHERE m.is_active <> 0", 'postgresql'), /m\.is_active <> false/);
+
+// 3. Unrelated integer comparisons untouched.
+check('amount = 10 untouched', translateSql("SELECT 1 WHERE amount = 10", 'postgresql'), 'amount = 10');
+
+// 4. ROUND coercion still intact.
+check('ROUND quantity coerced', translateSql("SELECT CAST(ROUND(quantity * 100) AS INTEGER) FROM procurement_records", 'postgresql'), /ROUND\(CAST\(CAST\(quantity AS REAL\) \* 100 AS numeric\)\)/);
+
+console.log(failed === 0 ? 'ALL TRANSLATE CHECKS PASS' : failed + ' CHECKS FAILED');
+
+// ---- live verification (SELECT-only) ----
+if (failed === 0) {
+  try {
+    const env = readFileSync('.env.local', 'utf8');
+    const url = (env.split(/\r?\n/).find((l) => l.startsWith('MATERIALIQ_DATABASE_URL=')) || '')
+      .split('=').slice(1).join('=').trim();
+    if (url) {
+      process.env.MATERIALIQ_DATABASE_URL = url;
+      process.env.MATERIALIQ_DB_DIALECT = 'postgresql';
+      const pg = (await import('pg')).default;
+      const ca = readFileSync('certs/supabase-ca.crt', 'utf8');
+      const c = new pg.Client({ connectionString: url, ssl: { ca, rejectUnauthorized: true } });
+      await c.connect();
+      // Integer-table join (previously would be broken by a blanket rewrite).
+      const q1 = translateSql("SELECT COUNT(*)::int AS n FROM procurement_records pr LEFT JOIN uom_conversion_rules r ON r.is_active = 1 AND r.rule_type IN ('ALIAS','SCALE') AND r.from_uom = UPPER(TRIM(pr.uom))", 'postgresql');
+      console.log('live integer-join:', JSON.stringify((await c.query(q1)).rows));
+      // Boolean-table join (needs the rewrite).
+      const q2 = translateSql("SELECT COUNT(*)::int AS n FROM material_mappings ma JOIN common_materials cm ON cm.id = ma.cmi_id AND cm.is_active = 1", 'postgresql');
+      console.log('live boolean-join:', JSON.stringify((await c.query(q2)).rows));
+      await c.end();
+      console.log('LIVE CHECKS PASS');
+    } else {
+      console.log('(live checks skipped: no MATERIALIQ_DATABASE_URL in .env.local)');
+    }
+  } catch (e) {
+    console.log('LIVE CHECK ERROR:', (e as Error).message.slice(0, 90));
+    failed++;
+  }
+}
+
+process.exit(failed === 0 ? 0 : 1);

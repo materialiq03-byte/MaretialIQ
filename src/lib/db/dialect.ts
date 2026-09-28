@@ -54,17 +54,58 @@ const IGNORE_SITES: Array<{ table: RegExp; target: string }> = [
  */
 const BOOLEAN_COLUMNS = ['category_compatible', 'is_active', 'is_critical'];
 
+/**
+ * Boolean literal translation, TABLE-AWARE. The migrated schema splits
+ * boolean-ish columns into two families:
+ *   - native booleans (baseline tables): common_materials.is_active,
+ *     material_records.is_active, match_candidates.category_compatible,
+ *     material_attributes.is_critical -- reject SQLite-style '= 1';
+ *   - integer 0/1 columns (v13+ DDL kept CHECK IN (0,1)):
+ *     suppliers.is_active, uom_conversion_rules.is_active -- REQUIRE '= 1'.
+ * A blanket rewrite of (col = 1) to (col = true) breaks the integer family
+ * (integer = boolean); no rewrite breaks the boolean family. Only
+ * qualified references resolving to a boolean table are rewritten;
+ * boolean-table call sites always qualify via FROM/JOIN aliases, and a
+ * bare is_active = 1 (integer-table statements) stays untouched.
+ */
+const BOOLEAN_QUALIFIED_TABLES = ['common_materials', 'material_records'];
+
 function translateBooleanLiterals(sql: string): string {
   let out = sql;
-  for (const col of BOOLEAN_COLUMNS) {
-    out = out.replace(new RegExp('\\b' + col + '\\b\\s*=\\s*1\\b', 'gi'), col + ' = true');
-    out = out.replace(new RegExp('\\b' + col + '\\b\\s*=\\s*0\\b', 'gi'), col + ' = false');
-    out = out.replace(new RegExp('\\b' + col + '\\b\\s*(!=|<>)\\s*1\\b', 'gi'), col + ' <> true');
-    out = out.replace(new RegExp('\\b' + col + '\\b\\s*(!=|<>)\\s*0\\b', 'gi'), col + ' <> false');
+  // Always-boolean columns (unique across tables): rewrite everywhere.
+  for (const col of ['category_compatible', 'is_critical']) {
+    out = out.replace(new RegExp('\\b' + col + '\\s*=\\s*1\\b', 'gi'), col + ' = true');
+    out = out.replace(new RegExp('\\b' + col + '\\s*=\\s*0\\b', 'gi'), col + ' = false');
+    out = out.replace(new RegExp('\\b' + col + '\\s*(!=|<>)\\s*1\\b', 'gi'), col + ' <> true');
+    out = out.replace(new RegExp('\\b' + col + '\\s*(!=|<>)\\s*0\\b', 'gi'), col + ' <> false');
+  }
+  // is_active: table-aware. Qualified refs are rewritten when the qualifier
+  // is the table name itself or a real alias (SQL keywords excluded); bare
+  // refs are rewritten only when the statement references no integer-family
+  // is_active table, which would make a bare reference ambiguous.
+  const INTEGER_IS_ACTIVE_TABLES = ['suppliers', 'uom_conversion_rules'];
+  const KEYWORDS = /^(?:WHERE|ON|GROUP|ORDER|LEFT|RIGHT|INNER|OUTER|JOIN|SET|VALUES|AS|AND|OR)$/i;
+  const refsIntegerTable = INTEGER_IS_ACTIVE_TABLES.some((t) => new RegExp('\\b' + t + '\\b', 'i').test(out));
+  for (const table of BOOLEAN_QUALIFIED_TABLES) {
+    const qualifiers = new Set<string>([table]);
+    const aliasRe = new RegExp('\\b(?:FROM|JOIN)\\s+' + table + '\\s+([A-Za-z_][\\w$]*)', 'gi');
+    let m: RegExpExecArray | null;
+    while ((m = aliasRe.exec(out)) !== null) {
+      if (!KEYWORDS.test(m[1])) qualifiers.add(m[1]);
+    }
+    for (const qualifier of qualifiers) {
+      const q = qualifier + '.';
+      out = out.replace(new RegExp('\\b' + q + 'is_active\\s*=\\s*1\\b', 'gi'), q + 'is_active = true');
+      out = out.replace(new RegExp('\\b' + q + 'is_active\\s*(!=|<>)\\s*0\\b', 'gi'), q + 'is_active <> false');
+    }
+    if (!refsIntegerTable) {
+      // Bare is_active in a statement that touches no integer-family table.
+      out = out.replace(/(?<![\w$.])is_active\s*=\s*1\b/gi, 'is_active = true');
+      out = out.replace(/(?<![\w$.])is_active\s*(!=|<>)\s*0\b/gi, 'is_active <> false');
+    }
   }
   return out;
 }
-
 /**
  * SQLite coerces TEXT-affinity decimal columns (quantity, unit_price — stored
  * as text in the frozen schema) to numeric inside arithmetic and ROUND();

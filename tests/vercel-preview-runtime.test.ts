@@ -118,6 +118,22 @@ test('run history and per-CPSE fixtures are packaged', () => {
   }
 });
 
+test('boolean literal rewrite is table-aware (integer tables keep = 1)', () => {
+  const { translateSql } = require('../src/lib/db/dialect') as {
+    translateSql: (sql: string, dialect: string) => string;
+  };
+  // Integer 0/1 columns (v13+ DDL): must NOT become booleans.
+  const s1 = translateSql("SELECT * FROM suppliers WHERE is_active = 1", 'postgresql');
+  assert.ok(s1.includes('is_active = 1'), 'suppliers.is_active must stay integer: ' + s1);
+  const s2 = translateSql("SELECT * FROM procurement_records pr LEFT JOIN uom_conversion_rules r ON r.is_active = 1", 'postgresql');
+  assert.ok(s2.includes('r.is_active = 1'), 'uom rules is_active must stay integer: ' + s2);
+  // Native booleans (baseline tables): must become true/false.
+  const b1 = translateSql("SELECT * FROM material_mappings ma JOIN common_materials cm ON cm.id = ma.cmi_id AND cm.is_active = 1", 'postgresql');
+  assert.ok(/cm\.is_active = true/.test(b1), 'common_materials is_active must become boolean: ' + b1);
+  const b2 = translateSql("SELECT * FROM organizations o LEFT JOIN material_records m ON m.organization_id = o.id AND m.is_active = 1", 'postgresql');
+  assert.ok(/m\.is_active = true/.test(b2), 'material_records is_active must become boolean: ' + b2);
+});
+
 test('tracked data/ artifacts are exactly the non-secret evaluation fixtures', () => {
   // The deployment payload is the git-tracked file set: data/ may hold local
   // ignored databases, but anything TRACKED under data/ must be a fixture.
