@@ -388,15 +388,25 @@ export class PostgresExecutor implements StatementExecutor {
     // require('pg') resolves against the project's node_modules (a tmpdir
     // file cannot see node_modules). node_modules/.cache is git-ignored.
     // Serverless runtimes mount the bundle read-only, so the cache dir must
-    // be writable: prefer an explicit MATERIALIQ_CACHE_DIR, then TMPDIR (set
-    // on Vercel), then the legacy node_modules/.cache. NODE_PATH is exported
-    // to the worker so require('pg') still resolves to the project's
-    // node_modules when the source lands outside the project tree.
-    let cacheDir = path.join(process.cwd(), 'node_modules', '.cache');
-    for (const dir of [process.env.MATERIALIQ_CACHE_DIR, process.env.TMPDIR, cacheDir]) {
-      if (!dir) continue;
+    // be writable: probe-write each candidate (explicit override, legacy
+    // node_modules/.cache, the OS temp dir) and use the first that accepts a
+    // real write. NODE_PATH is exported to the worker so require('pg') still
+    // resolves to the project's node_modules when the source lands outside
+    // the project tree.
+    const os = require('node:os') as typeof import('node:os');
+    const candidates = [
+      process.env.MATERIALIQ_CACHE_DIR,
+      path.join(process.cwd(), 'node_modules', '.cache'),
+      os.tmpdir(),
+    ].filter((d): d is string => !!d);
+    let cacheDir = candidates[candidates.length - 1];
+    const probe = `materialiq-probe-${process.pid}`;
+    for (const dir of candidates) {
       try {
         fs.mkdirSync(dir, { recursive: true });
+        const p = path.join(dir, probe);
+        fs.writeFileSync(p, 'ok');
+        fs.rmSync(p, { force: true });
         cacheDir = dir;
         break;
       } catch {
