@@ -41,7 +41,7 @@ import { translateStatement } from './dialect';
 import type { PreparedStatementApi, RunResult, StatementExecutor } from './adapter';
 
 const WORKER_SOURCE = /* js */ `
-const { Pool } = require('pg');
+const { Pool } = require(workerData.pgModulePath || 'pg');
 const { workerData, parentPort } = require('node:worker_threads');
 
 const sab = workerData.sab;
@@ -267,6 +267,20 @@ function hostOf(connectionString: string): string {
 }
 
 /**
+ * Absolute path of the `pg` package entry, resolved on the main thread (whose
+ * module resolution is guaranteed to see the project's node_modules). The
+ * worker requires pg through this path when its own source file lives outside
+ * the project tree and bare `require('pg')` would fail.
+ */
+function pgModulePath(): string | undefined {
+  try {
+    return require.resolve('pg');
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * Rewrite SQLite-style `?` placeholders to PostgreSQL `$1, $2, ...` numbering.
  * Quote-aware: `?` inside '...' or "..." literals is left alone (e.g. 'a?b').
  * PostgreSQL has no anonymous `?`, so repositories keep writing SQLite style
@@ -416,12 +430,17 @@ export class PostgresExecutor implements StatementExecutor {
     this.workerSourcePath = path.join(cacheDir, `materialiq-pg-executor-${process.pid}.cjs`);
     fs.writeFileSync(this.workerSourcePath, WORKER_SOURCE, { mode: 0o600 });
     this.worker = new Worker(this.workerSourcePath, {
-      workerData: { sab: this.sab, connectionString: this.connectionString, sslConfig: this.sslConfig },
+      workerData: {
+        sab: this.sab,
+        connectionString: this.connectionString,
+        sslConfig: this.sslConfig,
+        // When the worker source lives outside the project tree (read-only
+        // serverless bundles force a temp dir), plain require('pg') cannot
+        // resolve; hand the worker pg's absolute package path instead.
+        pgModulePath: pgModulePath(),
+      },
       stdout: true,
       stderr: true,
-      // The worker source may live outside the project tree (read-only-bundle
-      // serverless runtimes); NODE_PATH keeps require('pg') resolvable there.
-      env: { ...process.env, NODE_PATH: process.cwd() + '/node_modules' },
     });
     this.worker.unref(); // never keep the process alive just for the pool
   }
