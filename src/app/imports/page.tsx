@@ -40,8 +40,11 @@ export default async function ImportsPage({
     const result = listImports({ page: 1, pageSize: 20, organizationId: scope === null ? undefined : scope[0] });
     imports = result.items;
     total = result.total;
+    // PERF: listOrganizations() was previously called twice (once filtered,
+    // once not) — one read serves both branches.
+    const allOrgs = listOrganizations();
     // CPSE users may only import into their own organization.
-    orgs = scope === null ? listOrganizations() : listOrganizations().filter((o) => o.id === scope[0]);
+    orgs = scope === null ? allOrgs : allOrgs.filter((o) => o.id === scope[0]);
   } catch (err) {
     loadError = err instanceof Error ? err.message : String(err);
     imports = [];

@@ -16,7 +16,6 @@
 import { getDb } from '../db/client';
 import type { DashboardMetrics } from '../db/repositories/metrics-repository';
 import { loadRunHistory } from '../matching/run-history';
-import { listOpportunities } from './procurement-opportunity-service';
 
 export interface FlagshipReviewCase {
   matchId: number;
@@ -70,26 +69,47 @@ export interface ControlCenterData {
 export function getControlCenterData(metrics: DashboardMetrics): ControlCenterData {
   const db = getDb();
 
-  // Resolved reviews = review-queue rows no longer open.
-  const resolvedReviews = (
-    db.prepare("SELECT COUNT(*) AS n FROM review_queue WHERE status != 'open'").get() as { n: number }
-  ).n;
+  // PERF: resolved reviews are already grouped by status in the metrics
+  // batch (queueStatus covers every review_queue row). Deriving them here
+  // removes a sequential round trip; the value is identical to
+  // COUNT(*) WHERE status != 'open'.
+  const resolvedReviews = metrics.queueStatus
+    .filter((q) => q.status !== 'open')
+    .reduce((n, q) => n + q.n, 0);
 
   // Latest real evaluation accuracy from the append-only run history.
   const runs = loadRunHistory();
   const lastRun = runs.length > 0 ? runs[runs.length - 1] : null;
 
-  // Last matching run from the audit trail (details JSON written by runMatching).
-  const runRow = db
+  // PERF: the audit-run row, total-candidate count and the active CMI row
+  // used to be three separate sequential queries; one scalar batch replaces
+  // them (each subquery is the verbatim predicate of the query it replaces).
+  const batch = db
     .prepare(
-      `SELECT details, created_at FROM audit_logs WHERE action = 'match_generated' ORDER BY id DESC LIMIT 1`
+      `SELECT
+         (SELECT COUNT(*) FROM match_candidates) AS total_candidates,
+         (SELECT details FROM audit_logs WHERE action = 'match_generated' ORDER BY id DESC LIMIT 1) AS run_details,
+         (SELECT created_at FROM audit_logs WHERE action = 'match_generated' ORDER BY id DESC LIMIT 1) AS run_at,
+         (SELECT id FROM common_materials WHERE is_active = 1 ORDER BY id DESC LIMIT 1) AS cmi_id,
+         (SELECT code FROM common_materials WHERE is_active = 1 ORDER BY id DESC LIMIT 1) AS cmi_code,
+         (SELECT name FROM common_materials WHERE is_active = 1 ORDER BY id DESC LIMIT 1) AS cmi_name,
+         (SELECT category FROM common_materials WHERE is_active = 1 ORDER BY id DESC LIMIT 1) AS cmi_category`
     )
-    .get() as { details: string; created_at: string } | undefined;
+    .get() as {
+    total_candidates: number;
+    run_details: string | null;
+    run_at: string | null;
+    cmi_id: number | null;
+    cmi_code: string | null;
+    cmi_name: string | null;
+    cmi_category: string | null;
+  };
+
   let lastMatchRun: ControlCenterData['lastMatchRun'] = null;
   let droppedNotAMatch: number | null = null;
-  if (runRow) {
+  if (batch.run_details !== null && batch.run_details !== undefined) {
     try {
-      const d = JSON.parse(runRow.details) as {
+      const d = JSON.parse(batch.run_details) as {
         pairsCompared?: number;
         candidatesCreated?: number;
         droppedNotAMatch?: number;
@@ -98,7 +118,7 @@ export function getControlCenterData(metrics: DashboardMetrics): ControlCenterDa
         lastMatchRun = {
           pairsCompared: d.pairsCompared,
           candidatesCreated: d.candidatesCreated ?? 0,
-          at: runRow.created_at,
+          at: batch.run_at as string,
         };
       }
       if (typeof d.droppedNotAMatch === 'number') droppedNotAMatch = d.droppedNotAMatch;
@@ -107,18 +127,14 @@ export function getControlCenterData(metrics: DashboardMetrics): ControlCenterDa
     }
   }
 
-  // Decision-state distribution over pending candidates (same JSON path the
-  // metrics repository uses for matchOverview — reused verbatim).
-  const decisionStates = (
-    db
-      .prepare(
-        `SELECT COALESCE(json_extract(evidence, '$.decision.state'), 'UNCLASSIFIED') AS state,
-                COUNT(*) AS n
-           FROM match_candidates WHERE status = 'pending'
-          GROUP BY state ORDER BY n DESC`
-      )
-      .all() as Array<{ state: string; n: number }>
-  ).filter((r) => r.state !== 'UNCLASSIFIED');
+  // PERF: the pending decision-state distribution equals the metrics
+  // repository's matchOverview aggregation (same JSON path, same pending
+  // scope, same ORDER BY n DESC / key ASC) — reuse it instead of issuing a
+  // duplicate query. UNCLASSIFIED rows are filtered exactly as before.
+  const decisionStates: Array<{ state: string; n: number }> = metrics.matchOverview.map((r) => ({
+    state: r.decision,
+    n: r.n,
+  }));
 
   // Flagship case: the strongest TEXTUAL similarity among open critical-conflict
   // candidates (seal-class conflicts first, then combined semantic+fuzzy score).
@@ -169,10 +185,9 @@ export function getControlCenterData(metrics: DashboardMetrics): ControlCenterDa
   const flagship: FlagshipReviewCase | null = attentionRows.length > 0 ? toCase(attentionRows[0]) : null;
   const attentionCases: FlagshipReviewCase[] = attentionRows.map(toCase);
 
-  // Total candidates (KPI: everything the engine has ever proposed).
-  const totalCandidates = (
-    db.prepare('SELECT COUNT(*) AS n FROM match_candidates').get() as { n: number }
-  ).n;
+  // Total candidates (KPI: everything the engine has ever proposed) — from
+  // the scalar batch above.
+  const totalCandidates = Number(batch.total_candidates);
 
   // The classic flagship pair (CP-1001 ↔ BH-4410): a real lookup by material
   // codes, not a hard-coded match ID. It may be pending OR already decided —
@@ -217,14 +232,10 @@ export function getControlCenterData(metrics: DashboardMetrics): ControlCenterDa
       }
     : null;
 
-  // Harmonization outcome: the active CMI and its preserved legacy members.
-  const cmiRow = db
-    .prepare(
-      `SELECT id, code, name, category FROM common_materials WHERE is_active = 1 ORDER BY id DESC LIMIT 1`
-    )
-    .get() as { id: number; code: string; name: string; category: string } | undefined;
+  // Harmonization outcome: the active CMI (from the scalar batch above) and
+  // its preserved legacy members.
   let harmonization: ControlCenterData['harmonization'] = null;
-  if (cmiRow) {
+  if (batch.cmi_id !== null && batch.cmi_id !== undefined) {
     const members = (
       db
         .prepare(
@@ -234,9 +245,14 @@ export function getControlCenterData(metrics: DashboardMetrics): ControlCenterDa
              JOIN material_records mr ON mr.id = m.material_id
             WHERE m.cmi_id = ? ORDER BY o.code`
         )
-        .all(cmiRow.id) as Array<{ org: string; code: string }>
+        .all(batch.cmi_id) as Array<{ org: string; code: string }>
     );
-    harmonization = { code: cmiRow.code, name: cmiRow.name, category: cmiRow.category, members };
+    harmonization = {
+      code: batch.cmi_code as string,
+      name: batch.cmi_name as string,
+      category: batch.cmi_category as string,
+      members,
+    };
   }
 
   // Latest human review decisions — real audit rows, newest first.
@@ -266,7 +282,7 @@ export function getControlCenterData(metrics: DashboardMetrics): ControlCenterDa
     recentDecisions,
     totalCandidates,
     harmonization,
-    procurementSignals: buildProcurementSignals(db),
+    procurementSignals: buildProcurementSignals(),
   };
 }
 
@@ -275,20 +291,22 @@ export function getControlCenterData(metrics: DashboardMetrics): ControlCenterDa
  * opportunity count, CMI-linked records, unharmonized records. Wrapped in a
  * try/catch: procurement tables may not exist on pre-Step-12 databases.
  */
-function buildProcurementSignals(db: ReturnType<typeof getDb>): ControlCenterData['procurementSignals'] {
+function buildProcurementSignals(): ControlCenterData['procurementSignals'] {
   try {
-    const open = listOpportunities({ status: 'OPEN' }, 1, 1).total;
-    const coverage = db
+    // PERF: the opportunity count and the coverage aggregates used to be two
+    // sequential round trips; one scalar batch serves both (same predicates).
+    const row = getDb()
       .prepare(
-        `SELECT SUM(CASE WHEN cmi_id IS NOT NULL THEN 1 ELSE 0 END) AS linked,
-                SUM(CASE WHEN cmi_id IS NULL THEN 1 ELSE 0 END) AS unlinked
-           FROM procurement_records`
+        `SELECT
+           (SELECT COUNT(*) FROM procurement_opportunities WHERE status = 'OPEN') AS open_opportunities,
+           (SELECT SUM(CASE WHEN cmi_id IS NOT NULL THEN 1 ELSE 0 END) FROM procurement_records) AS linked,
+           (SELECT SUM(CASE WHEN cmi_id IS NULL THEN 1 ELSE 0 END) FROM procurement_records) AS unlinked`
       )
-      .get() as { linked: number | null; unlinked: number | null };
+      .get() as { open_opportunities: number; linked: number | null; unlinked: number | null };
     return {
-      openOpportunities: open,
-      cmiLinkedRecords: coverage.linked ?? 0,
-      unharmonizedRecords: coverage.unlinked ?? 0,
+      openOpportunities: Number(row.open_opportunities),
+      cmiLinkedRecords: row.linked ?? 0,
+      unharmonizedRecords: row.unlinked ?? 0,
     };
   } catch {
     // procurement tables may not exist on pre-Step-12 databases.

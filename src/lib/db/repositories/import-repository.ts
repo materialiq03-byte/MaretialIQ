@@ -119,7 +119,20 @@ export function listBlockedCodeCollisions(): BlockedCodeCollision[] {
     problems?: Array<{ rule: string }>;
     duplicateOf?: { materialId: number; originalCode: string };
   }
-  const out: BlockedCodeCollision[] = [];
+  // PERF: referenced material records used to be looked up one query per
+  // collision row (N+1 over up to 25 parsed import reports). References are
+  // collected first — same seen-set dedupe, same encounter order — then
+  // resolved with ONE batched IN (...) lookup before finalizing.
+  interface PendingCollision {
+    importId: number;
+    fileName: string;
+    /** cpse_name from the import row, when present (falls back to the CPSE name of the stored record). */
+    orgNameFromFile: string | null;
+    code: string;
+    fileDescription: string;
+    existingMaterialId: number;
+  }
+  const pending: PendingCollision[] = [];
   const seen = new Set<string>();
   for (const imp of imports) {
     let report: { rows?: ReportRow[] } | null = null;
@@ -136,29 +149,46 @@ export function listBlockedCodeCollisions(): BlockedCodeCollision[] {
       const key = `${code}:${row.duplicateOf.materialId}`;
       if (seen.has(key)) continue;
       seen.add(key);
-      const existing = getDb()
-        .prepare(
-          `SELECT mr.original_code, mr.original_description, COALESCE(o.name, o.code, '') AS org_name
-             FROM material_records mr LEFT JOIN organizations o ON o.id = mr.organization_id
-            WHERE mr.id = ?`
-        )
-        .get(row.duplicateOf.materialId) as
-        | { original_code: string; original_description: string | null; org_name: string }
-        | undefined;
-      if (!existing) continue;
-      const norm = (s: string | null | undefined) => (s ?? '').replace(/\s+/g, ' ').trim().toUpperCase();
-      if (fileDescription && norm(fileDescription) !== norm(existing.original_description)) {
-        out.push({
-          importId: imp.id,
-          fileName: imp.file_name,
-          orgName: row.values['cpse_name'] ?? existing.org_name,
-          code,
-          fileDescription,
-          existingMaterialId: row.duplicateOf.materialId,
-          existingCode: existing.original_code,
-          existingDescription: existing.original_description ?? '',
-        });
-      }
+      pending.push({
+        importId: imp.id,
+        fileName: imp.file_name,
+        orgNameFromFile: row.values['cpse_name'] ?? null,
+        code,
+        fileDescription,
+        existingMaterialId: row.duplicateOf.materialId,
+      });
+    }
+  }
+  if (pending.length === 0) return [];
+
+  const ids = [...new Set(pending.map((p) => p.existingMaterialId))];
+  const existingRows = getDb()
+    .prepare(
+      `SELECT mr.id, mr.original_code, mr.original_description, COALESCE(o.name, o.code, '') AS org_name
+         FROM material_records mr LEFT JOIN organizations o ON o.id = mr.organization_id
+        WHERE mr.id IN (${ids.map(() => '?').join(', ')})`
+    )
+    .all(...ids) as Array<{
+    id: number; original_code: string; original_description: string | null; org_name: string;
+  }>;
+  const byId = new Map(existingRows.map((r) => [Number(r.id), r]));
+
+  const norm = (s: string | null | undefined) => (s ?? '').replace(/\s+/g, ' ').trim().toUpperCase();
+  const out: BlockedCodeCollision[] = [];
+  for (const p of pending) {
+    const existing = byId.get(p.existingMaterialId);
+    if (!existing) continue;
+    if (p.fileDescription && norm(p.fileDescription) !== norm(existing.original_description)) {
+      out.push({
+        importId: p.importId,
+        fileName: p.fileName,
+        orgName: p.orgNameFromFile ?? existing.org_name,
+        code: p.code,
+        fileDescription: p.fileDescription,
+        existingMaterialId: p.existingMaterialId,
+        existingCode: existing.original_code,
+        existingDescription: existing.original_description ?? '',
+      });
     }
   }
   return out;

@@ -5,7 +5,7 @@ import {
 } from '@/lib/db/repositories/matching-repository';
 import { listCategories } from '@/lib/db/repositories/material-repository';
 import { listOrganizations } from '@/lib/db/repositories/organization-repository';
-import { getDashboardMetrics } from '@/lib/db/repositories/metrics-repository';
+import { getDb } from '@/lib/db/client';
 import { getDecisionBands } from '@/lib/services/matching-service';
 import { findMaterialIdBySearch } from '@/lib/db/repositories/matching-queries';
 import { DECISION_STATES, DECISION_STATE_LABELS } from '@/lib/matching/decision';
@@ -62,7 +62,27 @@ export default async function MatchingPage({
   const orgs = listOrganizations();
   const categories = listCategories();
   const manufacturers = listDistinctMatchManufacturers();
-  const metrics = getDashboardMetrics(scope === null ? null : scope[0] ?? -1);
+  // PERF: this page renders only the pending decision-state overview from
+  // the dashboard metrics bundle — fetch exactly that aggregation instead
+  // of the full metrics bundle. Same SQL shape, same rows, same ordering.
+  // Match/review metrics are inherently cross-CPSE; scoped users see those
+  // involving their organization (same clause the metrics repository uses).
+  const matchOrgFilter =
+    scope === null
+      ? ''
+      : ' AND (source_material_id IN (SELECT id FROM material_records WHERE organization_id = ?) OR candidate_material_id IN (SELECT id FROM material_records WHERE organization_id = ?))';
+  const matchOrgParams: Array<string | number> = scope === null ? [] : [scope[0] ?? -1, scope[0] ?? -1];
+  const matchOverview: Array<{ decision: string; n: number }> = (
+    getDb()
+      .prepare(
+        `SELECT COALESCE(json_extract(evidence, '$.decision.state'), 'UNCLASSIFIED') AS decision,
+                COUNT(*) AS n
+           FROM match_candidates WHERE status = 'pending'${matchOrgFilter}
+          GROUP BY decision ORDER BY n DESC, decision`
+      )
+      .all(...matchOrgParams) as Array<{ decision: string; n: number }>
+  ).filter((r) => r.decision !== 'UNCLASSIFIED');
+  const overviewN = new Map(matchOverview.map((m) => [m.decision, m.n]));
   const bands = getDecisionBands();
 
   const { items, total } = listMatches({
@@ -82,7 +102,7 @@ export default async function MatchingPage({
 
   // Technical-conflict indicator per row (from stored critical_difference).
   const shown = conflictOnly ? items.filter((m) => m.candidate.critical_difference) : items;
-  const overviewFor = (state: string) => metrics.matchOverview.find((m) => m.decision === state)?.n ?? 0;
+  const overviewFor = (state: string) => overviewN.get(state) ?? 0;
 
   const fmtScore = (n: number) => `${Math.round(n)}%`;
 
