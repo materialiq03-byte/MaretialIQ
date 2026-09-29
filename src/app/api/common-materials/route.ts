@@ -5,6 +5,7 @@ import { requireApiPermission } from '@/lib/auth/guard';
 import { listCmiWithMembers } from '@/lib/services/registry-service';
 import { createCmiFromMatch } from '@/lib/services/matching-service';
 import { cmiCreateSchema, parseOrThrow } from '@/lib/validation/schemas';
+import { invalidateReadCaches, READ_CACHE_TAGS } from '@/lib/cache/read-cache';
 
 export async function GET() {
   try {
@@ -21,6 +22,7 @@ export async function POST(request: NextRequest) {
     const body = await readBoundedJson<unknown>(request);
     const input = parseOrThrow(cmiCreateSchema, body);
     const result = createCmiFromMatch(input, user.email);
+    invalidateReadCaches(READ_CACHE_TAGS.dashboardMetrics, READ_CACHE_TAGS.analyticsSummary);
     return ok(result, 201);
   } catch (err) {
     return fail(err);

@@ -5,6 +5,7 @@ import { errors } from '@/lib/errors';
 import { requireApiPermission, assertOrganizationWrite } from '@/lib/auth/guard';
 import { getImportRequired } from '@/lib/db/repositories/import-repository';
 import { executeImport } from '@/lib/services/import-center-service';
+import { invalidateReadCaches, READ_CACHE_TAGS } from '@/lib/cache/read-cache';
 
 export const dynamic = 'force-dynamic';
 
@@ -54,6 +55,7 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ id: st
       duplicateStrategy,
       actor: typeof body?.actor === 'string' && body.actor.trim() ? body.actor.trim().slice(0, 120) : user.email,
     });
+    invalidateReadCaches(READ_CACHE_TAGS.dashboardMetrics, READ_CACHE_TAGS.analyticsSummary);
     return ok(result);
   } catch (err) {
     return fail(err);

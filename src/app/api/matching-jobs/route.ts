@@ -1,6 +1,7 @@
 import { ok, fail } from '@/lib/api-helpers';
 import { requireApiPermission } from '@/lib/auth/guard';
 import { createAndStartMatchingJob, listMatchingJobs } from '@/lib/services/matching-job-service';
+import { invalidateReadCaches, READ_CACHE_TAGS } from '@/lib/cache/read-cache';
 
 /**
  * Step-4 matching job API — create + start a matching run as a background
@@ -11,6 +12,7 @@ export async function POST() {
   try {
     const user = await requireApiPermission('RUN_MATCHING');
     const job = createAndStartMatchingJob(user.email);
+    invalidateReadCaches(READ_CACHE_TAGS.dashboardMetrics, READ_CACHE_TAGS.analyticsSummary);
     return ok(job, 202);
   } catch (err) {
     return fail(err);

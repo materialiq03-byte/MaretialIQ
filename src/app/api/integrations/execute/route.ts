@@ -6,6 +6,7 @@ import { maxUploadMbFor } from '@/lib/config';
 import { executeIntegration } from '@/lib/integrations/integration-service';
 import { getAdapterRequired } from '@/lib/integrations/registry';
 import { getOrganizationByCode } from '@/lib/db/repositories/organization-repository';
+import { invalidateReadCaches, READ_CACHE_TAGS } from '@/lib/cache/read-cache';
 
 export const dynamic = 'force-dynamic';
 
@@ -61,6 +62,7 @@ export async function POST(request: NextRequest) {
       payload,
       actor: user.email,
     });
+    invalidateReadCaches(READ_CACHE_TAGS.dashboardMetrics, READ_CACHE_TAGS.analyticsSummary);
     return ok(result, 202);
   } catch (err) {
     return fail(err);

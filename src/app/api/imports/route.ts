@@ -9,6 +9,7 @@ import { parseImportFile } from '@/lib/services/file-parse-service';
 import { performImport } from '@/lib/services/material-service';
 import { listImports } from '@/lib/db/repositories/import-repository';
 import { getOrganization, getOrganizationByCode } from '@/lib/db/repositories/organization-repository';
+import { invalidateReadCaches, READ_CACHE_TAGS } from '@/lib/cache/read-cache';
 
 export const dynamic = 'force-dynamic';
 
@@ -97,7 +98,7 @@ export async function POST(request: NextRequest) {
     }));
 
     const result = performImport({ organizationId, fileName, fileType, rows, actor });
-
+    invalidateReadCaches(READ_CACHE_TAGS.dashboardMetrics, READ_CACHE_TAGS.analyticsSummary);
     return ok(
       {
         importId: result.importId,

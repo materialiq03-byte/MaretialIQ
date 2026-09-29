@@ -7,6 +7,7 @@ import {
   type GroundTruthPairRecord,
 } from '@/lib/matching/ground-truth';
 import { loadRunHistory, validateRunRecord, currentBuildId } from '@/lib/matching/run-history';
+import { cachedRead, READ_CACHE_TAGS } from '@/lib/cache/read-cache';
 import { DECISION_STATE_LABELS, type DecisionState } from '@/lib/matching/decision';
 import type { Metadata } from 'next';
 
@@ -56,7 +57,9 @@ export default async function EvaluationPage() {
   await requirePermission('VIEW_ANALYTICS');
   // Computed live from the labelled dataset + the real pipeline — the exact
   // numbers a re-run of `npm run evaluate` produces.
-  const ev = evaluateGroundTruth();
+  // PERF (Phase 3): the evaluation summary is a read-only aggregate with a
+  // longer TTL (fixtures change only via explicit npm run evaluate).
+  const ev = await cachedRead(['evaluation-page-summary'], 120, [READ_CACHE_TAGS.evaluationSummary], evaluateGroundTruth);
   // Permanent run history (current run first as "current", then prior runs).
   const history = loadRunHistory().slice().reverse();
   const historyProblems = history.flatMap((r) => validateRunRecord(r));

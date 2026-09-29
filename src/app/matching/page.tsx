@@ -6,6 +6,10 @@ import {
 import { listCategories } from '@/lib/db/repositories/material-repository';
 import { listOrganizations } from '@/lib/db/repositories/organization-repository';
 import { getDb } from '@/lib/db/client';
+import { cachedRead, READ_CACHE_TAGS } from '@/lib/cache/read-cache';
+
+/** Short backstop TTL; every mutation route revalidates the tag sooner. */
+const DASHBOARD_TTL_SECONDS = 30;
 import { getDecisionBands } from '@/lib/services/matching-service';
 import { findMaterialIdBySearch } from '@/lib/db/repositories/matching-queries';
 import { DECISION_STATES, DECISION_STATE_LABELS } from '@/lib/matching/decision';
@@ -72,16 +76,22 @@ export default async function MatchingPage({
       ? ''
       : ' AND (source_material_id IN (SELECT id FROM material_records WHERE organization_id = ?) OR candidate_material_id IN (SELECT id FROM material_records WHERE organization_id = ?))';
   const matchOrgParams: Array<string | number> = scope === null ? [] : [scope[0] ?? -1, scope[0] ?? -1];
-  const matchOverview: Array<{ decision: string; n: number }> = (
-    getDb()
-      .prepare(
-        `SELECT COALESCE(json_extract(evidence, '$.decision.state'), 'UNCLASSIFIED') AS decision,
+  const matchOverview = await cachedRead(
+    ['match-overview', String(scope === null ? 'all' : scope[0] ?? -1)],
+    DASHBOARD_TTL_SECONDS,
+    [READ_CACHE_TAGS.dashboardMetrics],
+    () =>
+      (
+        getDb()
+          .prepare(
+            `SELECT COALESCE(json_extract(evidence, '$.decision.state'), 'UNCLASSIFIED') AS decision,
                 COUNT(*) AS n
            FROM match_candidates WHERE status = 'pending'${matchOrgFilter}
           GROUP BY decision ORDER BY n DESC, decision`
-      )
-      .all(...matchOrgParams) as Array<{ decision: string; n: number }>
-  ).filter((r) => r.decision !== 'UNCLASSIFIED');
+          )
+          .all(...matchOrgParams) as Array<{ decision: string; n: number }>
+      ).filter((r) => r.decision !== 'UNCLASSIFIED'),
+  );
   const overviewN = new Map(matchOverview.map((m) => [m.decision, m.n]));
   const bands = getDecisionBands();
 

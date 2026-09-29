@@ -11,7 +11,7 @@ export default async function DashboardPage() {
 
   let metrics;
   try {
-    metrics = getMetricsForUser(user);
+    metrics = await getMetricsForUser(user);
   } catch (err) {
     return (
       <main>

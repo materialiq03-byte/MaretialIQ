@@ -10,6 +10,7 @@ import {
   listImportJobs,
   startQueuedImportAsync,
 } from '@/lib/services/import-job-service';
+import { invalidateReadCaches, READ_CACHE_TAGS } from '@/lib/cache/read-cache';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,6 +33,7 @@ export async function POST(request: NextRequest) {
       const imp = getImportRequired(job.dataImportId);
       assertOrganizationWrite(user, imp.organization_id);
       startQueuedImportAsync(job.jobId);
+      invalidateReadCaches(READ_CACHE_TAGS.dashboardMetrics, READ_CACHE_TAGS.analyticsSummary);
       return ok(job, 202);
     }
 

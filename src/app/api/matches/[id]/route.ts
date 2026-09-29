@@ -7,6 +7,7 @@ import { parseOrThrow, decisionSchema } from '@/lib/validation/schemas';
 import { decideMatch } from '@/lib/services/matching-service';
 import { decideMatchHardened } from '@/lib/services/match-review-service';
 import { judgeScopeOrganizationIds } from '@/lib/services/judge-mode-service';
+import { invalidateReadCaches, READ_CACHE_TAGS } from '@/lib/cache/read-cache';
 
 /**
  * POST /api/matches/:id — record a reviewer decision (approve / reject /
@@ -48,6 +49,7 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ id: st
       expectedStatus !== undefined
         ? decideMatchHardened(matchId, { ...input, expectedStatus: expectedStatus as never }, user.email)
         : decideMatch(matchId, input, user.email);
+    invalidateReadCaches(READ_CACHE_TAGS.dashboardMetrics, READ_CACHE_TAGS.analyticsSummary);
     return ok(result);
   } catch (err) {
     return fail(err);

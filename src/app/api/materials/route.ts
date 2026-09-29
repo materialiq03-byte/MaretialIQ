@@ -6,6 +6,7 @@ import { getOrganization } from '@/lib/db/repositories/organization-repository';
 import { listMaterials, listCategories, type MaterialSortField } from '@/lib/db/repositories/material-repository';
 import { createMaterial } from '@/lib/services/material-service';
 import { materialCreateSchema, parseOrThrow } from '@/lib/validation/schemas';
+import { invalidateReadCaches, READ_CACHE_TAGS } from '@/lib/cache/read-cache';
 
 const SORT_FIELDS: MaterialSortField[] = ['code', 'category', 'org', 'updated', 'description'];
 
@@ -47,6 +48,7 @@ export async function POST(request: NextRequest) {
     const input = parseOrThrow(materialCreateSchema, body);
     assertOrganizationWrite(user, input.organizationId);
     const created = createMaterial(input, user.email);
+    invalidateReadCaches(READ_CACHE_TAGS.dashboardMetrics, READ_CACHE_TAGS.analyticsSummary);
     return ok({ materialId: created.id }, 201);
   } catch (err) {
     return fail(err);

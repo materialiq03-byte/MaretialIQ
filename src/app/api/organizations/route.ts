@@ -6,6 +6,7 @@ import { listOrganizations, createOrganization } from '@/lib/db/repositories/org
 import { listOrganizationsWithCounts } from '@/lib/db/repositories/organization-queries';
 import { orgCreateSchema, parseOrThrow } from '@/lib/validation/schemas';
 import type { OrgStatus } from '@/lib/types/domain';
+import { revalidateTag } from 'next/cache';
 
 export async function GET(request: NextRequest) {
   try {
@@ -25,6 +26,7 @@ export async function POST(request: NextRequest) {
     const body = await readBoundedJson<unknown>(request);
     const input = parseOrThrow(orgCreateSchema, body);
     const created = createOrganization(input);
+    revalidateTag('dashboard-metrics');
     return ok({ organization: created }, 201);
   } catch (err) {
     return fail(err);

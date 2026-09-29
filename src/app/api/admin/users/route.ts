@@ -16,6 +16,7 @@ import { requireApiPermission } from '@/lib/auth/guard';
 import { listUsers, createUserAsync } from '@/lib/auth/admin-service';
 import { readBoundedJson } from '@/lib/security/request-limit';
 import { userCreateSchema, parseOrThrow } from '@/lib/validation/schemas';
+import { revalidateTag } from 'next/cache';
 
 export async function GET() {
   try {
@@ -32,6 +33,7 @@ export async function POST(request: NextRequest) {
     const body = await readBoundedJson<unknown>(request);
     const input = parseOrThrow(userCreateSchema, body);
     const user = await createUserAsync(input, actor.email);
+    revalidateTag('dashboard-metrics');
     return ok({ user }, 201);
   } catch (err) {
     return fail(err);

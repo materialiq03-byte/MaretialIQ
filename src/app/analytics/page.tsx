@@ -1,5 +1,6 @@
 import { requirePermission } from '@/lib/auth/guard';
 import { getAnalytics } from '@/lib/services/analytics-service';
+import { cachedRead, READ_CACHE_TAGS } from '@/lib/cache/read-cache';
 import { evaluateAgainstGroundTruth } from '@/lib/matching/evaluation';
 import { DECISION_STATE_LABELS, type DecisionState } from '@/lib/matching/decision';
 import type { Metadata } from 'next';
@@ -14,10 +15,12 @@ function pct(x: number): string {
 
 export default async function AnalyticsPage() {
   await requirePermission('VIEW_ANALYTICS');
-  const data = getAnalytics();
+  // PERF (Phase 3): both summaries are read-only aggregates — short-TTL
+  // tagged cache; the tags are revalidated by the mutation routes.
+  const data = await cachedRead(['analytics-summary'], 30, [READ_CACHE_TAGS.analyticsSummary], getAnalytics);
   // Matcher-quality metrics against the labelled synthetic ground truth
   // (PRD §15). Computed from the same engine the candidates came from.
-  const ev = evaluateAgainstGroundTruth();
+  const ev = await cachedRead(['evaluation-summary'], 120, [READ_CACHE_TAGS.evaluationSummary], evaluateAgainstGroundTruth);
 
   const decisionLabel = (d: string): string =>
     (DECISION_STATE_LABELS as Record<string, string>)[d as DecisionState] ?? d;
